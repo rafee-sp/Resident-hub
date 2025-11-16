@@ -1,0 +1,56 @@
+name: ResidentHub CI/CD - Build & Deploy
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2️⃣ Login to Docker Hub
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      # 3️⃣ Build & Push Backend (PRIVATE repo)
+      - name: Build & Push Backend (private)
+        run: |
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/app-backend:latest ./backend
+          docker push ${{ secrets.DOCKER_USERNAME }}/app-backend:latest
+
+      # 4️⃣ Build & Push Frontend (PUBLIC repo)
+      - name: Build & Push Frontend (public)
+        run: |
+          docker build \
+            --build-arg VITE_BACKEND_AUTH_URL=http://${{ secrets.EC2_HOST }} \
+            --build-arg VITE_BACKEND_URL=http://${{ secrets.EC2_HOST }}/api/v1 \
+            -t ${{ secrets.DOCKER_USERNAME }}/app-frontend:latest ./frontend
+            docker push ${{ secrets.DOCKER_USERNAME }}/app-frontend:latest
+
+      # 5️⃣ Deploy to EC2
+      - name: Deploy on EC2
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # Navigate or create app folder
+            cd ~/app || mkdir -p ~/app && cd ~/app
+
+            echo "Logging into Docker Hub..."
+            echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+            echo "Pulling latest images..."
+            docker-compose pull
+
+            echo "Restarting containers..."
+            docker-compose up -d
+
+            echo "Cleaning up unused images..."
+            docker system prune -f
