@@ -2,6 +2,35 @@
 
 Resident Hub is a modern property management and emergency broadcast platform. It empowers administrators to efficiently manage residents, disseminate instant SMS alerts and voice call notifications, and publish timely updates regarding emergencies or maintenance events.
 
+## 🛠️ Tech Stack
+
+**Frontend:**  
+- React (with Vite)  
+- TailwindCSS
+- Axios
+
+**Backend:**  
+- Java 21 / Spring Boot 3.x  
+- Maven
+- Spring Security & JWT for authentication  
+- Spring Data JPA / Hibernate
+
+**Database:**  
+- MySQL 8.x  (RDS)
+
+**Caching & Sessions:**  
+- Redis 7.x  
+
+**Messaging / Communication:**  
+- Twilio (SMS & Voice Calls)  
+
+**DevOps / Deployment:**  
+- Docker & Docker Compose  
+- GitHub Actions (CI/CD)  
+- AWS EC2 (hosting)  
+- Docker Hub (image registry)  
+
+
 ## Key Features & Benefits
 
 *   **Resident Management:** Streamline resident information and communication channels.
