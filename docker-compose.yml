@@ -1,0 +1,150 @@
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: resident-hub-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-resident_hub}
+      MYSQL_USER: ${DB_USERNAME:-residentuser}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-password}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql      
+    networks:
+      - resident-hub-network
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-rootpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: resident-hub-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - resident-hub-network
+    command: redis-server --appendonly yes ${REDIS_PASSWORD:+--requirepass $REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Spring Boot Backend Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        JAR_FILE: target/*.jar
+    container_name: resident-hub-backend
+    restart: unless-stopped
+    environment:
+      # Database Configuration
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-resident_hub}
+      DB_USERNAME: ${DB_USERNAME:-residentuser}
+      DB_PASSWORD: ${DB_PASSWORD:-password}
+      
+      # Redis Configuration
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      
+      # JWT Configuration
+      JWT_SECRET: ${JWT_SECRET}
+      ACCESS_EXPIRATION: ${ACCESS_EXPIRATION:-3600000}
+      REFRESH_EXPIRATION: ${REFRESH_EXPIRATION:-86400000}
+      MESSAGE_TOKEN_EXPIRATION: ${MESSAGE_TOKEN_EXPIRATION:-300000}
+      
+      # Application URLs
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      BACKEND_URL: ${BACKEND_URL:-http://localhost:8080}
+      
+      # Twilio Configuration
+      TWILIO_SID: ${TWILIO_SID}
+      TWILIO_AUTH_ID: ${TWILIO_AUTH_ID}
+      TWILIO_PHONE: ${TWILIO_PHONE}
+      PHONE_REGION: ${PHONE_REGION:-IN}
+      TEXT_RATE_LIMIT: ${TEXT_RATE_LIMIT:-1.0}
+      CALL_RATE_LIMIT: ${CALL_RATE_LIMIT:-1.0}
+      
+      # JPA/Hibernate Configuration
+      DDL_AUTO: ${DDL_AUTO:-validate}
+      SHOW_SQL: ${SHOW_SQL:-false}
+      
+      # Spring Profile
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      
+      # Java Options
+      JAVA_OPTS: ${JAVA_OPTS:--Xmx512m -Xms256m}
+      
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    volumes:
+      - backend_logs:/app/logs
+      - backend_uploads:/app/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - resident-hub-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Frontend Service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_BACKEND_AUTH_URL: ${VITE_BACKEND_AUTH_URL:-http://localhost:8080/api/auth}
+        VITE_BACKEND_URL: ${VITE_BACKEND_URL:-http://localhost:8080/api}
+    container_name: resident-hub-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - resident-hub-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+  backend_logs:
+    driver: local
+  backend_uploads:
+    driver: local
+  nginx_logs:
+    driver: local
+
+networks:
+  resident-hub-network:
+    driver: bridge
