@@ -1,0 +1,75 @@
+spring:
+  application:
+    name: Emergency Broadcaster App
+
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+  jpa:
+    hibernate:
+      ddl-auto: ${DDL_AUTO:validate}
+    show-sql: ${SHOW_SQL:false}
+    database-platform: org.hibernate.dialect.MySQLDialect
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          batch_size: 10
+          order_inserts: true
+          order_updates: true
+        generate_statistics: false
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 10
+          min-idle: 1
+          max-idle: 5
+
+#JWT configuration
+jwt:
+  secret-key: ${JWT_SECRET}
+  expiration:
+    access-token: ${ACCESS_EXPIRATION}
+    refresh-token: ${REFRESH_EXPIRATION}
+    message-token: ${MESSAGE_TOKEN_EXPIRATION}
+
+logging:
+  level:
+    com.rafee.residenthub: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.springframework.web.servlet.DispatcherServlet: INFO
+    org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping: INFO
+    org.springframework.web: WARN
+
+# Application Configuration
+application:
+  frontend-url: ${FRONTEND_URL:http://localhost:5173}
+  backend-url: ${BACKEND_URL:http://localhost:8080}
+
+#Twilio Configuration
+twilio:
+  sid: ${TWILIO_SID}
+  auth-id: ${TWILIO_AUTH_ID}
+  phone: ${TWILIO_PHONE}
+  phone-region : ${PHONE_REGION:IN}
+  text-rate-limit: ${TEXT_RATE_LIMIT:1.0}
+  call-rate-limit: ${CALL_RATE_LIMIT:1.0}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
