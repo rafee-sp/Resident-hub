@@ -1,6 +1,6 @@
 spring:
   application:
-    name: Emergency Broadcaster App
+    name: Resdient Hub
 
   datasource:
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME}
